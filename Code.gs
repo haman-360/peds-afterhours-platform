@@ -292,7 +292,7 @@ function validateRequiredFields_(data) {
 }
 
 function getConsultationSheet_() {
-  const spreadsheetId = PropertiesService.getScriptProperties().getProperty(CONFIG.spreadsheetIdProperty);
+  const spreadsheetId = getConfiguredValue_(CONFIG.spreadsheetIdProperty, looksLikeSpreadsheetId_);
   const spreadsheet = spreadsheetId
     ? SpreadsheetApp.openById(spreadsheetId)
     : SpreadsheetApp.getActiveSpreadsheet();
@@ -315,7 +315,26 @@ function ensureHeaderRow_(sheet) {
 }
 
 function getDoctorEmail_() {
-  return PropertiesService.getScriptProperties().getProperty(CONFIG.doctorEmailProperty);
+  return getConfiguredValue_(CONFIG.doctorEmailProperty, looksLikeEmail_);
+}
+
+function getConfiguredValue_(propertyNameOrValue, directValueDetector) {
+  if (!propertyNameOrValue) return '';
+
+  const directValue = cleanText_(propertyNameOrValue);
+  if (directValueDetector(directValue)) {
+    return directValue;
+  }
+
+  return cleanText_(PropertiesService.getScriptProperties().getProperty(directValue));
+}
+
+function looksLikeEmail_(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function looksLikeSpreadsheetId_(value) {
+  return /^[a-zA-Z0-9_-]{25,}$/.test(value);
 }
 
 function cleanText_(value) {

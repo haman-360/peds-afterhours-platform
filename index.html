@@ -389,11 +389,26 @@
 
       const formData = Object.fromEntries(new FormData(form).entries());
 
+      if (!canUseGoogleScriptRun()) {
+        showError({
+          message: 'このページはGoogle Apps ScriptのWebアプリURLから開いてください。GitHub Pagesやローカルファイルからは送信できません。'
+        });
+        return;
+      }
+
       google.script.run
         .withSuccessHandler(showComplete)
         .withFailureHandler(showError)
         .submitConsultation(formData);
     });
+
+    function canUseGoogleScriptRun() {
+      return Boolean(
+        window.google &&
+        google.script &&
+        google.script.run
+      );
+    }
 
     function showComplete(result) {
       receivedAtText.textContent = result && result.receivedAt ? `受付日時: ${result.receivedAt}` : '';
