@@ -85,6 +85,7 @@ function saveConsultationToSheet(data, emergency, receivedAt) {
   try {
     const sheet = getConsultationSheet_();
     ensureHeaderRow_(sheet);
+    ensureColumnFormats_(sheet);
 
     sheet.appendRow([
       receivedAt,
@@ -312,6 +313,14 @@ function ensureHeaderRow_(sheet) {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.setFrozenRows(1);
   }
+}
+
+function ensureColumnFormats_(sheet) {
+  const patientIdColumn = HEADERS.indexOf('患者ID') + 1;
+  const phoneColumn = HEADERS.indexOf('返信用電話番号') + 1;
+
+  sheet.getRange(1, patientIdColumn, sheet.getMaxRows(), 1).setNumberFormat('@');
+  sheet.getRange(1, phoneColumn, sheet.getMaxRows(), 1).setNumberFormat('@');
 }
 
 function getDoctorEmail_() {

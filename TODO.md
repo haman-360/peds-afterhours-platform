@@ -14,17 +14,17 @@
 
 ## 次にやること
 
-- [ ] Google Apps Scriptプロジェクトを作成する
-- [ ] `Code.gs`、`index.html`、`appsscript.json` をApps Scriptへ反映する
-- [ ] 保存先Googleスプレッドシートを作成する
-- [ ] Script Propertiesに `SPREADSHEET_ID = 1kgfm7ZbtQh6Qzjd-lX1RFOwhCMELPlKskROSh9N_jxd5WaHDVjUlio2X` を設定する
-- [ ] Script Propertiesに `DOCTOR_EMAIL = hamakidsclinic2021@gmail.com` を設定する
-- [ ] Webアプリとしてデプロイする `webアプリURL = https://script.google.com/macros/s/AKfycbxS7KysMx83KcdbJCOiUHfTCmXMbWFdM-X6n4WDPTPkLx1xYL1WwVFIzvO3FeeLN8TEYA/exec`
-- [ ] テスト患者IDでフォーム送信を確認する
-- [ ] スプレッドシートに全列が正しく保存されることを確認する
-- [ ] 医師宛メールが届くことを確認する
-- [ ] 緊急フラグありのテストケースで件名と本文が強調されることを確認する
-- [ ] 送信完了画面に注意文が表示されることを確認する
+- [x] Google Apps Scriptプロジェクトを作成する
+- [x] `Code.gs`、`index.html`、`appsscript.json` をApps Scriptへ反映する
+- [x] 保存先Googleスプレッドシートを作成する
+- [x] Script Propertiesに `SPREADSHEET_ID` を設定する
+- [x] Script Propertiesに `DOCTOR_EMAIL` を設定する
+- [x] Webアプリとしてデプロイする
+- [x] テスト患者IDでフォーム送信を確認する
+- [x] スプレッドシートに全列が正しく保存されることを確認する
+- [x] 医師宛メールが届くことを確認する
+- [x] 緊急フラグありのテストケースで件名と本文が強調されることを確認する
+- [x] 送信完了画面に注意文が表示されることを確認する
 
 ## 運用設計
 
