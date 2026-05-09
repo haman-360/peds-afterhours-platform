@@ -26,7 +26,7 @@
     }
 
     main {
-      width: min(760px, 100%);
+      width: min(520px, 100%);
       margin: 0 auto;
       padding: 20px 14px 40px;
     }
@@ -199,30 +199,32 @@
 
     @media (max-width: 900px), (pointer: coarse) {
       :root {
-        font-size: 24px;
+        font-size: 30px;
+        -webkit-text-size-adjust: 140%;
+        text-size-adjust: 140%;
       }
 
       main {
-        width: 100%;
-        padding: 18px 12px 36px;
+        width: min(390px, 100%);
+        padding: 18px 10px 36px;
       }
 
       h1 {
-        font-size: 1.28rem;
+        font-size: 1.16rem;
       }
 
       h2 {
-        font-size: 1.16rem;
+        font-size: 1.05rem;
       }
 
       input,
       select,
       textarea {
-        min-height: 3.05rem;
+        min-height: 2.9rem;
       }
 
       .radio-option {
-        min-height: 3.1rem;
+        min-height: 2.95rem;
       }
     }
   </style>
