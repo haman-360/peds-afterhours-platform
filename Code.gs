@@ -2,6 +2,7 @@ const CONFIG = {
   spreadsheetIdProperty: 'SPREADSHEET_ID',
   doctorEmailProperty: 'DOCTOR_EMAIL',
   sheetName: 'consultations',
+  authorizedPatientsSheetName: 'authorized_patients',
   defaultStatus: '未対応',
   timezone: 'Asia/Tokyo'
 };
@@ -29,6 +30,13 @@ const HEADERS = [
   '対応状況',
   '医師メモ',
   'カルテ転記済み'
+];
+
+const AUTHORIZED_PATIENT_HEADERS = [
+  '患者ID',
+  '相談コード',
+  '有効',
+  'メモ'
 ];
 
 function doGet() {
@@ -63,6 +71,7 @@ function submitConsultation(formData) {
 function handleConsultationSubmission(formData) {
   const normalized = normalizeFormData_(formData);
   validateRequiredFields_(normalized);
+  validateAuthorizedPatient_(normalized);
 
   const emergency = judgeEmergencyFlag(normalized);
   const aiDraft = createAiSummaryDraft(normalized);
@@ -250,7 +259,8 @@ function parsePostPayload_(e) {
 function normalizeFormData_(formData) {
   const data = formData || {};
   return {
-    patientId: cleanText_(data.patientId),
+    patientId: normalizePatientId_(data.patientId),
+    consultationCode: normalizeConsultationCode_(data.consultationCode),
     relationship: cleanText_(data.relationship),
     phone: cleanText_(data.phone),
     chiefComplaint: cleanText_(data.chiefComplaint),
@@ -273,6 +283,7 @@ function normalizeFormData_(formData) {
 function validateRequiredFields_(data) {
   const required = {
     patientId: '患者ID',
+    consultationCode: 'かかりつけ相談コード',
     relationship: '相談者続柄',
     phone: '返信用電話番号',
     chiefComplaint: '主訴',
@@ -292,7 +303,44 @@ function validateRequiredFields_(data) {
   }
 }
 
+function validateAuthorizedPatient_(data) {
+  const sheet = getAuthorizedPatientsSheet_();
+  ensureAuthorizedPatientsHeaderRow_(sheet);
+  ensureAuthorizedPatientsColumnFormats_(sheet);
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    throw new Error('かかりつけ相談コードの登録がまだありません。医院へお問い合わせください。');
+  }
+
+  const values = sheet.getRange(2, 1, lastRow - 1, AUTHORIZED_PATIENT_HEADERS.length).getValues();
+  const matched = values.some((row) => {
+    const patientId = normalizePatientId_(row[0]);
+    const consultationCode = normalizeConsultationCode_(row[1]);
+    const enabled = isEnabledValue_(row[2]);
+
+    return enabled &&
+      patientId === data.patientId &&
+      consultationCode === data.consultationCode;
+  });
+
+  if (!matched) {
+    throw new Error('患者IDまたはかかりつけ相談コードを確認できませんでした。入力内容をご確認ください。');
+  }
+}
+
 function getConsultationSheet_() {
+  const spreadsheet = getSpreadsheet_();
+  return spreadsheet.getSheetByName(CONFIG.sheetName) || spreadsheet.insertSheet(CONFIG.sheetName);
+}
+
+function getAuthorizedPatientsSheet_() {
+  const spreadsheet = getSpreadsheet_();
+  return spreadsheet.getSheetByName(CONFIG.authorizedPatientsSheetName) ||
+    spreadsheet.insertSheet(CONFIG.authorizedPatientsSheetName);
+}
+
+function getSpreadsheet_() {
   const spreadsheetId = getConfiguredValue_(CONFIG.spreadsheetIdProperty, looksLikeSpreadsheetId_);
   const spreadsheet = spreadsheetId
     ? SpreadsheetApp.openById(spreadsheetId)
@@ -302,7 +350,7 @@ function getConsultationSheet_() {
     throw new Error('保存先スプレッドシートが見つかりません。Script PropertiesにSPREADSHEET_IDを設定してください。');
   }
 
-  return spreadsheet.getSheetByName(CONFIG.sheetName) || spreadsheet.insertSheet(CONFIG.sheetName);
+  return spreadsheet;
 }
 
 function ensureHeaderRow_(sheet) {
@@ -321,6 +369,26 @@ function ensureColumnFormats_(sheet) {
 
   sheet.getRange(1, patientIdColumn, sheet.getMaxRows(), 1).setNumberFormat('@');
   sheet.getRange(1, phoneColumn, sheet.getMaxRows(), 1).setNumberFormat('@');
+}
+
+function ensureAuthorizedPatientsHeaderRow_(sheet) {
+  const currentHeaders = sheet.getRange(1, 1, 1, AUTHORIZED_PATIENT_HEADERS.length).getValues()[0];
+  const hasHeaders = currentHeaders.some((value) => value);
+
+  if (!hasHeaders) {
+    sheet.getRange(1, 1, 1, AUTHORIZED_PATIENT_HEADERS.length).setValues([AUTHORIZED_PATIENT_HEADERS]);
+    sheet.setFrozenRows(1);
+  }
+}
+
+function ensureAuthorizedPatientsColumnFormats_(sheet) {
+  sheet.getRange(1, 1, sheet.getMaxRows(), 2).setNumberFormat('@');
+}
+
+function setupAuthorizedPatientsSheet() {
+  const sheet = getAuthorizedPatientsSheet_();
+  ensureAuthorizedPatientsHeaderRow_(sheet);
+  ensureAuthorizedPatientsColumnFormats_(sheet);
 }
 
 function getDoctorEmail_() {
@@ -348,4 +416,28 @@ function looksLikeSpreadsheetId_(value) {
 
 function cleanText_(value) {
   return String(value || '').trim();
+}
+
+function normalizePatientId_(value) {
+  const text = cleanText_(value);
+  if (/^\d{1,5}$/.test(text)) {
+    return text.padStart(5, '0');
+  }
+
+  return text;
+}
+
+function normalizeConsultationCode_(value) {
+  return cleanText_(value).toUpperCase().replace(/\s+/g, '');
+}
+
+function isEnabledValue_(value) {
+  if (value === true) return true;
+
+  const text = cleanText_(value).toLowerCase();
+  return text === 'true' ||
+    text === '有効' ||
+    text === 'yes' ||
+    text === 'y' ||
+    text === '1';
 }
