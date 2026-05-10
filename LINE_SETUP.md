@@ -58,12 +58,12 @@ LINE Official Account Managerで、友だち追加時のあいさつメッセー
 休日
 ```
 
-返信文:
+返信内容は、テキストにURLを直接貼るのではなく、リッチメッセージを使う。
+
+テキストメッセージ:
 
 ```text
-夜間休日相談フォームはこちらです。
-
-https://script.google.com/macros/s/AKfycbxS7KysMx83KcdbJCOiUHfTCmXMbWFdM-X6n4WDPTPkLx1xYL1WwVFIzvO3FeeLN8TEYA/exec
+夜間・休日に医師へ相談したい場合は、対象患者さん向けの相談フォームから送信できます。
 
 対象は、当院の小児かかりつけ診療料に登録している患者さんです。
 送信には患者IDとかかりつけ相談コードが必要です。氏名や住所は入力しないでください。
@@ -73,6 +73,32 @@ https://script.google.com/macros/s/AKfycbxS7KysMx83KcdbJCOiUHfTCmXMbWFdM-X6n4WDP
 このフォームは緊急通報ではありません。返信を待つ間に状態が悪化した場合は、119または救急受診をしてください。
 
 明らかな緊急症状がある場合は、このフォームではなく救急対応を優先してください。
+```
+
+続けて、下記のリッチメッセージを送信する。
+
+リッチメッセージ画像:
+
+```text
+LINE/consultation_form_rich_message.png
+```
+
+アクション:
+
+```text
+リンク
+```
+
+URL:
+
+```text
+https://script.google.com/macros/s/AKfycbxS7KysMx83KcdbJCOiUHfTCmXMbWFdM-X6n4WDPTPkLx1xYL1WwVFIzvO3FeeLN8TEYA/exec
+```
+
+アクションラベル:
+
+```text
+夜間休日相談フォームを開く
 ```
 
 ### キーワード: 救急
@@ -239,6 +265,10 @@ URL:
 https://script.google.com/macros/s/AKfycbxS7KysMx83KcdbJCOiUHfTCmXMbWFdM-X6n4WDPTPkLx1xYL1WwVFIzvO3FeeLN8TEYA/exec
 ```
 
+補足:
+
+リッチメニュー左上は、タップ後すぐフォームを開くため `リンク` のままでよい。トーク内で案内文を表示したい場合は、種類を `テキスト`、送信テキストを `夜間休日相談` に変更し、自動応答でリッチメッセージを返す。
+
 #### 救急時
 
 種類:
@@ -353,6 +383,12 @@ tel:0724512021
 - 応答方法: 手動チャット + 応答メッセージ
 
 Webhook URL欄に古いGoogle Apps Script URLが残っていても、`Webhook` がオフなら呼び出されない。
+
+### URLが長く表示される
+
+LINEの通常テキストでは、HTMLのように `こちらをタップ` へURLを埋め込むことはできない。URL本文を見せたくない場合は、リッチメッセージを使い、画像全体にリンクアクションを設定する。
+
+夜間休日相談フォーム案内では、`LINE/consultation_form_rich_message.png` をリッチメッセージ画像として使う。
 
 ### 手入力では返るが、リッチメニューのタップでは返らない
 
