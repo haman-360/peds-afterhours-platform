@@ -24,7 +24,6 @@ const HEADERS = [
   '嘔吐',
   '下痢',
   '服薬状況',
-  '写真添付有無',
   '保護者の希望',
   '緊急フラグ',
   '対応状況',
@@ -113,7 +112,6 @@ function saveConsultationToSheet(data, emergency, receivedAt) {
       data.vomiting,
       data.diarrhea,
       data.medication,
-      data.hasPhoto,
       data.parentRequest,
       emergency.flag ? '要注意' : '通常',
       CONFIG.defaultStatus,
@@ -157,7 +155,6 @@ function notifyDoctor(data, emergency, receivedAt, aiDraft) {
     `嘔吐: ${data.vomiting}`,
     `下痢: ${data.diarrhea}`,
     `服薬状況: ${data.medication}`,
-    `写真添付有無: ${data.hasPhoto}`,
     `保護者の希望: ${data.parentRequest}`,
     '',
     `AI要約欄: ${aiDraft.summary}`,
@@ -275,7 +272,6 @@ function normalizeFormData_(formData) {
     vomiting: cleanText_(data.vomiting),
     diarrhea: cleanText_(data.diarrhea),
     medication: cleanText_(data.medication),
-    hasPhoto: cleanText_(data.hasPhoto),
     parentRequest: cleanText_(data.parentRequest)
   };
 }
@@ -372,6 +368,22 @@ function ensureHeaderRow_(sheet) {
   if (!hasHeaders) {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.setFrozenRows(1);
+    return;
+  }
+
+  removeDeprecatedConsultationColumns_(sheet);
+}
+
+function removeDeprecatedConsultationColumns_(sheet) {
+  const deprecatedHeaders = ['写真添付有無'];
+  const lastColumn = sheet.getLastColumn();
+  if (lastColumn < 1) return;
+
+  const currentHeaders = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  for (let index = currentHeaders.length - 1; index >= 0; index--) {
+    if (deprecatedHeaders.indexOf(currentHeaders[index]) !== -1) {
+      sheet.deleteColumn(index + 1);
+    }
   }
 }
 
