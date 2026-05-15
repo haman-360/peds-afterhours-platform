@@ -301,6 +301,18 @@ function validateRequiredFields_(data) {
   if (missing.length) {
     throw new Error(`未入力の項目があります: ${missing.map((key) => required[key]).join('、')}`);
   }
+
+  validateInputFormats_(data);
+}
+
+function validateInputFormats_(data) {
+  if (!/^\d{5}$/.test(data.patientId)) {
+    throw new Error('患者IDは、先頭の0を含めて5桁の数字で入力してください。');
+  }
+
+  if (!/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(data.consultationCode)) {
+    throw new Error('かかりつけ相談コードは、XXXX-XXXX-XXXXの形式で入力してください。');
+  }
 }
 
 function validateAuthorizedPatient_(data) {

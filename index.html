@@ -241,15 +241,15 @@
       <h2>患者情報</h2>
 
       <div class="field">
-        <label for="patientId">患者ID</label>
-        <input id="patientId" name="patientId" type="text" inputmode="numeric" autocomplete="off" required>
-        <div class="hint">氏名や住所は入力しないでください。</div>
+        <label for="patientId">患者ID（5桁）</label>
+        <input id="patientId" name="patientId" type="text" inputmode="numeric" autocomplete="off" pattern="\d{5}" maxlength="5" placeholder="例: 00850" required>
+        <div class="hint">先頭の0を含めて5桁で入力してください。氏名や住所は入力しないでください。</div>
       </div>
 
       <div class="field">
-        <label for="consultationCode">かかりつけ相談コード</label>
-        <input id="consultationCode" name="consultationCode" type="text" autocomplete="off" autocapitalize="characters" required>
-        <div class="hint">小児かかりつけ登録時に案内されたコードを入力してください。</div>
+        <label for="consultationCode">かかりつけ相談コード（XXXX-XXXX-XXXX）</label>
+        <input id="consultationCode" name="consultationCode" type="text" autocomplete="off" autocapitalize="characters" pattern="[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}" maxlength="14" placeholder="例: ABCD-1234-EFGH" required>
+        <div class="hint">小児かかりつけ登録時に案内された14文字のコードを、ハイフンを含めて入力してください。</div>
       </div>
 
       <div class="field">
