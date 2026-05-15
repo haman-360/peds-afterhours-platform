@@ -159,6 +159,10 @@
       background: #91a3ad;
     }
 
+    .secondary-button {
+      background: #334e68;
+    }
+
     .error {
       display: none;
       padding: 12px 14px;
@@ -190,6 +194,35 @@
     .complete p {
       margin: 0 0 12px;
       line-height: 1.7;
+    }
+
+    .line-return-box {
+      margin: 18px 0;
+      padding: 16px;
+      border-radius: 6px;
+      background: #ecfdf5;
+      border: 1px solid #99f6e4;
+    }
+
+    .line-return-box h2 {
+      margin: 0 0 10px;
+      font-size: 1.05rem;
+    }
+
+    .line-message-preview {
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 6px;
+      background: #ffffff;
+      border: 1px solid #cbd2d9;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .copy-result {
+      min-height: 1.5rem;
+      color: #0f766e;
+      font-weight: 700;
     }
 
     .danger-text {
@@ -384,6 +417,14 @@
       <p>相談内容を受け付けました。医師からの返信をお待ちください。</p>
       <p id="receivedAtText"></p>
       <p id="emergencyText" class="danger-text"></p>
+      <div class="line-return-box">
+        <h2>LINEへの通知</h2>
+        <p>このあとLINEのトーク画面に戻り、下の文を送信してください。医院側のLINE通知で相談送信に気づきやすくなります。</p>
+        <div id="lineMessagePreview" class="line-message-preview"></div>
+        <button id="copyLineMessageButton" class="secondary-button" type="button">この文をコピー</button>
+        <p id="copyResult" class="copy-result"></p>
+        <p>相談コードはLINEトークには送らないでください。</p>
+      </div>
       <p class="danger-text">返信を待つ間に状態が悪化した場合は119または救急受診をしてください。</p>
       <p class="danger-text">明らかな緊急症状がある場合は、このフォームではなく救急対応を優先してください。</p>
     </div>
@@ -397,6 +438,10 @@
     const completeScreen = document.getElementById('completeScreen');
     const receivedAtText = document.getElementById('receivedAtText');
     const emergencyText = document.getElementById('emergencyText');
+    const lineMessagePreview = document.getElementById('lineMessagePreview');
+    const copyLineMessageButton = document.getElementById('copyLineMessageButton');
+    const copyResult = document.getElementById('copyResult');
+    let lineReturnMessage = '';
 
     form.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -409,6 +454,7 @@
       submitButton.textContent = '送信中...';
 
       const formData = Object.fromEntries(new FormData(form).entries());
+      lineReturnMessage = `相談送信 ${formData.patientId}`;
 
       if (!canUseGoogleScriptRun()) {
         showError({
@@ -436,11 +482,22 @@
       emergencyText.textContent = result && result.emergencyFlag
         ? '入力内容に要注意項目が含まれています。状態が悪い場合は返信を待たず救急対応を優先してください。'
         : '';
+      lineMessagePreview.textContent = lineReturnMessage;
+      copyResult.textContent = '';
 
       formScreen.style.display = 'none';
       completeScreen.style.display = 'grid';
       window.scrollTo({ top: 0, behavior: 'auto' });
     }
+
+    copyLineMessageButton.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(lineReturnMessage);
+        copyResult.textContent = 'コピーしました。LINEのトーク画面に戻って送信してください。';
+      } catch (error) {
+        copyResult.textContent = 'コピーできない場合は、表示されている文を長押ししてコピーしてください。';
+      }
+    });
 
     function showError(error) {
       submitButton.disabled = false;
