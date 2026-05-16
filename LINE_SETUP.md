@@ -22,6 +22,12 @@ LINE Official Account Managerの管理画面で設定する。
 https://script.google.com/macros/s/AKfycbxS7KysMx83KcdbJCOiUHfTCmXMbWFdM-X6n4WDPTPkLx1xYL1WwVFIzvO3FeeLN8TEYA/exec
 ```
 
+### 輪番病院一覧URL
+
+```text
+https://script.google.com/macros/s/AKfycbxS7KysMx83KcdbJCOiUHfTCmXMbWFdM-X6n4WDPTPkLx1xYL1WwVFIzvO3FeeLN8TEYA/exec?page=hospitals
+```
+
 ### 泉州地域小児科救急輪番表
 
 ```text
@@ -139,11 +145,16 @@ https://www.senshu-minami119.jp/articles/1151.html
 返信文:
 
 ```text
-夜間・休日に小児科を受診する場合は、泉州地域小児科救急輪番表を確認してください。
+泉州地域の小児救急輪番病院一覧はこちらです。
 
+https://script.google.com/macros/s/AKfycbxS7KysMx83KcdbJCOiUHfTCmXMbWFdM-X6n4WDPTPkLx1xYL1WwVFIzvO3FeeLN8TEYA/exec?page=hospitals
+
+ページ内で曜日別一覧と、現在時刻の担当候補を確認できます。
+
+診療体制は変更されることがあります。受診前に、必ず掲載されている医療機関へ電話で確認してくださいね。
+
+参考URL:
 https://www.senshu-minami119.jp/articles/1151.html
-
-状況により診察が一時的に停止している場合があります。受診前に、必ず掲載されている医療機関へ電話で確認してくださいね。
 
 ぐったりしている、呼吸が苦しそう、水分が取れない、意識がはっきりしない、けいれんがある場合は、輪番表の確認よりも119番通報を優先してくださいね。
 ```
@@ -287,14 +298,20 @@ https://script.google.com/macros/s/AKfycbxS7KysMx83KcdbJCOiUHfTCmXMbWFdM-X6n4WDP
 種類:
 
 ```text
-テキスト
+リンク
 ```
 
-送信テキスト:
+URL:
 
 ```text
-輪番病院
+https://script.google.com/macros/s/AKfycbxS7KysMx83KcdbJCOiUHfTCmXMbWFdM-X6n4WDPTPkLx1xYL1WwVFIzvO3FeeLN8TEYA/exec?page=hospitals
 ```
+
+補足:
+
+タップ後すぐ、曜日別一覧と現在時刻の担当候補を表示する。
+トーク内で案内文だけを返したい場合は、種類を `テキスト`、送信テキストを `輪番病院` に変更し、自動応答で一覧URLと注意文を返す。
+LINEトーク内で「今日の今の時間は、○○病院が担当です」と動的に返信したい場合は、自動応答メッセージだけでは実現できない。Webhookを有効にし、Messaging APIで曜日・時刻判定を行う実装が必要になる。
 
 #### よくある質問
 
@@ -360,7 +377,8 @@ LINE Official Account ManagerでLINEコールを有効化する場合は、通�
 - [ ] リッチメニューが表示される
 - [ ] 夜間休日相談をタップするとフォームが開く
 - [ ] 救急時をタップすると救急案内が返る
-- [ ] 輪番病院をタップすると輪番表URLと電話確認の案内が返る
+- [ ] 輪番病院をタップすると曜日別一覧と現在時刻の担当候補が開く
+- [ ] 輪番病院ページの電話ボタンをタップすると電話発信画面になる
 - [ ] よくある質問をタップするとFAQが返る
 - [ ] 診療時間をタップすると診療時間と電話案内が返る
 - [ ] 医院へ電話をタップすると電話発信画面になる

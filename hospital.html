@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>泉州地域 小児救急輪番病院</title>
+  <style>
+    :root {
+      color: #1f2933;
+      background: #f7f7f4;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 22px;
+      -webkit-text-size-adjust: 120%;
+      text-size-adjust: 120%;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f7f7f4;
+      font-size: 1rem;
+    }
+
+    main {
+      width: 100%;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 20px 14px 40px;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 1.32rem;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 28px 0 10px;
+      font-size: 1.12rem;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 12px;
+      line-height: 1.65;
+    }
+
+    a {
+      color: #0f766e;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .notice {
+      margin: 0 0 16px;
+      padding: 14px 16px;
+      border-left: 5px solid #c2410c;
+      background: #fff7ed;
+      color: #7c2d12;
+      line-height: 1.7;
+      font-weight: 700;
+    }
+
+    .current {
+      margin: 16px 0;
+      padding: 18px;
+      border: 1px solid #99f6e4;
+      border-radius: 8px;
+      background: #ecfdf5;
+    }
+
+    .current h2 {
+      margin-top: 0;
+    }
+
+    .current-list,
+    .schedule-list {
+      display: grid;
+      gap: 10px;
+      margin: 12px 0 0;
+    }
+
+    .hospital-card {
+      padding: 14px;
+      border: 1px solid #d9e2ec;
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .hospital-name {
+      margin-bottom: 6px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .hospital-meta {
+      color: #52606d;
+      font-size: 0.96rem;
+      line-height: 1.55;
+    }
+
+    .phone-link {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 0.72rem 0.9rem;
+      border-radius: 6px;
+      background: #0f766e;
+      color: #ffffff;
+      text-decoration: none;
+      line-height: 1.2;
+    }
+
+    .day-section {
+      margin-top: 18px;
+    }
+
+    .reference {
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid #d9e2ec;
+    }
+
+    @media (max-width: 900px), (pointer: coarse) {
+      :root {
+        font-size: 30px;
+        -webkit-text-size-adjust: 140%;
+        text-size-adjust: 140%;
+      }
+
+      main {
+        padding: 18px 14px 36px;
+      }
+
+      h1 {
+        font-size: 1.14rem;
+      }
+
+      h2 {
+        font-size: 1.03rem;
+      }
+
+      .phone-link {
+        display: block;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>泉州地域 小児救急輪番病院</h1>
+
+    <p class="notice">
+      診療体制は変更されることがあります。受診前に、必ず掲載されている医療機関へ電話で確認してください。
+    </p>
+
+    <section class="current" aria-labelledby="currentHeading">
+      <h2 id="currentHeading">今の時間の担当候補</h2>
+      <p id="currentSummary">現在時刻を確認しています。</p>
+      <div id="currentList" class="current-list"></div>
+    </section>
+
+    <section aria-labelledby="scheduleHeading">
+      <h2 id="scheduleHeading">曜日別一覧</h2>
+      <div id="scheduleList"></div>
+    </section>
+
+    <section class="reference" aria-labelledby="referenceHeading">
+      <h2 id="referenceHeading">参考URL</h2>
+      <p>
+        最新情報は泉州地域小児科救急輪番表も確認してください。<br>
+        <a href="https://www.senshu-minami119.jp/articles/1151.html" target="_blank" rel="noopener">https://www.senshu-minami119.jp/articles/1151.html</a>
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
+    const DAY_ORDER = ['月', '火', '水', '木', '金', '土', '日', '祝日'];
+    const SCHEDULE = [
+      { day: '月', hospital: '岸和田徳洲会病院', condition: '全週', phone: '072-445-9915', hours: '19:00-20:00', holidayHours: '休診' },
+      { day: '月', hospital: '阪南市民病院', condition: '全週', phone: '072-471-3321', hours: '20:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '火', hospital: '和泉市立総合医療センター', condition: '全週', phone: '0725-41-1331', hours: '19:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '水', hospital: '岸和田徳洲会病院', condition: '第1・3・5週', phone: '072-445-9915', hours: '19:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '水', hospital: '泉大津市立周産期小児医療センター', condition: '第2・4週', phone: '0725-32-5622', hours: '19:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '木', hospital: '市立岸和田市民病院', condition: '全週', phone: '072-445-1000', hours: '19:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '金', hospital: '市立貝塚病院', condition: '全週', phone: '072-422-5865', hours: '19:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '土', hospital: '岸和田徳洲会病院', condition: '全週', phone: '072-445-9915', hours: '13:00-16:00', holidayHours: '休診' },
+      { day: '土', hospital: 'りんくう総合医療センター', condition: '第1週', phone: '072-469-3111', hours: '23:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '土', hospital: '和泉市立総合医療センター', condition: '第2・4週', phone: '0725-41-1331', hours: '23:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '土', hospital: '岸和田徳洲会病院', condition: '第3週', phone: '072-445-9915', hours: '23:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '土', hospital: '泉大津市立周産期小児医療センター', condition: '第5週', phone: '0725-32-5622', hours: '23:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '日', hospital: '大阪母子医療センター', condition: '第1・4週', phone: '0725-56-1220', hours: '23:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '日', hospital: 'りんくう総合医療センター', condition: '第2週', phone: '072-469-3111', hours: '23:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '日', hospital: '市立岸和田市民病院', condition: '第3・5週', phone: '072-445-1000', hours: '23:00-翌6:00', holidayHours: '23:00-翌6:00' },
+      { day: '木', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '19:30-22:30', holidayHours: '日祝を参照' },
+      { day: '土', hospital: '泉州北部小児初期救急広域センター', condition: '初期救急', phone: '072-443-5940', hours: '17:00-22:00', holidayHours: '日祝を参照' },
+      { day: '土', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '17:30-20:30', holidayHours: '日祝を参照' },
+      { day: '日', hospital: '泉州北部小児初期救急広域センター', condition: '初期救急', phone: '072-443-5940', hours: '9:00-12:00, 13:00-16:00, 17:00-22:00', holidayHours: '9:00-12:00, 13:00-16:00, 17:00-22:00' },
+      { day: '日', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '9:30-11:30, 12:30-16:30', holidayHours: '9:30-11:30, 12:30-16:30' },
+      { day: '祝日', hospital: '泉州北部小児初期救急広域センター', condition: '初期救急', phone: '072-443-5940', hours: '日祝を参照', holidayHours: '9:00-12:00, 13:00-16:00, 17:00-22:00' },
+      { day: '祝日', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '日祝を参照', holidayHours: '9:30-11:30, 12:30-16:30' }
+    ];
+
+    renderCurrent();
+    renderSchedule();
+
+    function renderCurrent() {
+      const now = new Date();
+      const day = WEEKDAY_LABELS[now.getDay()];
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      const yesterdayDay = WEEKDAY_LABELS[yesterday.getDay()];
+      const weekOfMonth = Math.ceil(now.getDate() / 7);
+      const yesterdayWeekOfMonth = Math.ceil(yesterday.getDate() / 7);
+      const candidates = SCHEDULE.filter((item) => {
+        if (item.day === day) {
+          return matchesWeek(item.condition, weekOfMonth) &&
+            isCurrentTimeInHours(now, item.hours, 'same-day');
+        }
+
+        if (item.day === yesterdayDay) {
+          return matchesWeek(item.condition, yesterdayWeekOfMonth) &&
+            isCurrentTimeInHours(now, item.hours, 'overnight-after-midnight');
+        }
+
+        return false;
+      });
+
+      const summary = document.getElementById('currentSummary');
+      const list = document.getElementById('currentList');
+      const timeText = now.toLocaleString('ja-JP', {
+        month: 'numeric',
+        day: 'numeric',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      if (!candidates.length) {
+        summary.textContent = `${timeText} 現在、この一覧上で受付時間内の担当候補は見つかりません。下の曜日別一覧と参考URLを確認し、受診前に必ず電話してください。祝日は祝日欄も確認してください。`;
+        list.innerHTML = '';
+        return;
+      }
+
+      summary.textContent = `${timeText} 現在の担当候補です。受診前に必ず電話で確認してください。祝日は祝日欄も確認してください。`;
+      list.innerHTML = candidates.map(renderHospitalCard).join('');
+    }
+
+    function renderSchedule() {
+      const container = document.getElementById('scheduleList');
+      container.innerHTML = DAY_ORDER.map((day) => {
+        const cards = SCHEDULE
+          .filter((item) => item.day === day)
+          .map(renderHospitalCard)
+          .join('');
+
+        if (!cards) return '';
+
+        return `
+          <section class="day-section" aria-labelledby="day-${day}">
+            <h2 id="day-${day}">${day}</h2>
+            <div class="schedule-list">${cards}</div>
+          </section>
+        `;
+      }).join('');
+    }
+
+    function renderHospitalCard(item) {
+      return `
+        <article class="hospital-card">
+          <div class="hospital-name">${escapeHtml(item.hospital)}</div>
+          <div class="hospital-meta">
+            条件: ${escapeHtml(item.condition)}<br>
+            受付時間: ${escapeHtml(item.hours)}<br>
+            祝日: ${escapeHtml(item.holidayHours)}<br>
+            電話番号: ${escapeHtml(item.phone)}
+          </div>
+          <a class="phone-link" href="tel:${phoneHref(item.phone)}">電話する</a>
+        </article>
+      `;
+    }
+
+    function matchesWeek(condition, weekOfMonth) {
+      if (condition === '全週' || condition === '初期救急') return true;
+      return condition.indexOf(`第${weekOfMonth}`) !== -1;
+    }
+
+    function isCurrentTimeInHours(now, hoursText, mode) {
+      if (!hoursText || hoursText.indexOf('参照') !== -1 || hoursText === '休診') return false;
+
+      return hoursText.split(',').some((rangeText) => {
+        const parts = rangeText.trim().split('-');
+        if (parts.length !== 2) return false;
+
+        const start = minutesFromClock(parts[0]);
+        let end = minutesFromClock(parts[1].replace('翌', ''));
+        if (start === null || end === null) return false;
+
+        const current = now.getHours() * 60 + now.getMinutes();
+        const crossesMidnight = parts[1].indexOf('翌') !== -1 || end <= start;
+        if (crossesMidnight) {
+          if (mode === 'same-day') return current >= start;
+          if (mode === 'overnight-after-midnight') return current < end;
+          return false;
+        }
+
+        if (mode !== 'same-day') return false;
+        return current >= start && current < end;
+      });
+    }
+
+    function minutesFromClock(text) {
+      const match = text.match(/(\d{1,2}):(\d{2})/);
+      if (!match) return null;
+      return Number(match[1]) * 60 + Number(match[2]);
+    }
+
+    function phoneHref(phone) {
+      return phone.replace(/[^\d]/g, '');
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

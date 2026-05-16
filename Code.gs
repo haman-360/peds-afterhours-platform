@@ -38,11 +38,17 @@ const AUTHORIZED_PATIENT_HEADERS = [
   'メモ'
 ];
 
-function doGet() {
+function doGet(e) {
+  const page = e && e.parameter && e.parameter.page;
+  const templateName = page === 'hospitals' ? 'hospital' : 'index';
+  const title = page === 'hospitals'
+    ? '泉州地域 小児救急輪番病院'
+    : '小児かかりつけ夜間休日相談';
+
   return HtmlService
-    .createTemplateFromFile('index')
+    .createTemplateFromFile(templateName)
     .evaluate()
-    .setTitle('小児かかりつけ夜間休日相談')
+    .setTitle(title)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
