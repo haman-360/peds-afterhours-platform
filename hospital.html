@@ -244,6 +244,15 @@
       });
 
       if (!candidates.length) {
+        const nextOpening = findNextOpeningCandidates(now);
+        if (nextOpening) {
+          const nextTimeText = formatOpeningTime(nextOpening.date, now);
+          const hospitalText = formatHospitalNames(nextOpening.items);
+          summary.textContent = `${timeText} 現在、この一覧上で受付時間内の担当候補は見つかりません。次は${nextTimeText}から、${hospitalText}の受付が始まります。受診前に必ず電話で確認してください。祝日は祝日欄も確認してください。`;
+          list.innerHTML = nextOpening.items.map(renderHospitalCard).join('');
+          return;
+        }
+
         summary.textContent = `${timeText} 現在、この一覧上で受付時間内の担当候補は見つかりません。下の曜日別一覧と参考URLを確認し、受診前に必ず電話してください。祝日は祝日欄も確認してください。`;
         list.innerHTML = '';
         return;
@@ -290,6 +299,84 @@
     function matchesWeek(condition, weekOfMonth) {
       if (condition === '全週' || condition === '初期救急') return true;
       return condition.indexOf(`第${weekOfMonth}`) !== -1;
+    }
+
+    function findNextOpeningCandidates(now) {
+      const currentTime = now.getTime();
+      const openings = [];
+
+      for (let offset = 0; offset <= 7; offset += 1) {
+        const targetDate = new Date(now);
+        targetDate.setDate(now.getDate() + offset);
+        const day = WEEKDAY_LABELS[targetDate.getDay()];
+        const weekOfMonth = Math.ceil(targetDate.getDate() / 7);
+
+        SCHEDULE.forEach((item) => {
+          if (item.day !== day || !matchesWeek(item.condition, weekOfMonth)) return;
+
+          getOpeningStarts(item.hours).forEach((startMinutes) => {
+            const openingDate = new Date(targetDate);
+            openingDate.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+            if (openingDate.getTime() <= currentTime) return;
+
+            openings.push({
+              date: openingDate,
+              item
+            });
+          });
+        });
+      }
+
+      if (!openings.length) return null;
+
+      const earliestTime = Math.min(...openings.map((opening) => opening.date.getTime()));
+      return {
+        date: new Date(earliestTime),
+        items: openings
+          .filter((opening) => opening.date.getTime() === earliestTime)
+          .map((opening) => opening.item)
+      };
+    }
+
+    function getOpeningStarts(hoursText) {
+      if (!hoursText || hoursText.indexOf('参照') !== -1 || hoursText === '休診') return [];
+
+      return hoursText.split(',')
+        .map((rangeText) => {
+          const parts = rangeText.trim().split('-');
+          if (parts.length !== 2) return null;
+          return minutesFromClock(parts[0]);
+        })
+        .filter((start) => start !== null);
+    }
+
+    function formatOpeningTime(date, now) {
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
+      const target = new Date(date);
+      target.setHours(0, 0, 0, 0);
+
+      const datePart = target.getTime() === today.getTime()
+        ? ''
+        : date.toLocaleDateString('ja-JP', {
+          month: 'numeric',
+          day: 'numeric',
+          weekday: 'short'
+        }) + ' ';
+
+      const timePart = date.toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      return `${datePart}${timePart}`;
+    }
+
+    function formatHospitalNames(items) {
+      const hospitals = [...new Set(items.map((item) => item.hospital))];
+      if (hospitals.length === 1) return hospitals[0];
+      if (hospitals.length === 2) return hospitals.join('と');
+      return `${hospitals.slice(0, -1).join('、')}、${hospitals[hospitals.length - 1]}`;
     }
 
     function isCurrentTimeInHours(now, hoursText, mode) {
