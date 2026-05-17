@@ -75,6 +75,24 @@
       background: #ecfdf5;
     }
 
+    .quick-actions {
+      display: grid;
+      gap: 8px;
+      margin: 0 0 16px;
+    }
+
+    .jump-link {
+      display: block;
+      padding: 0.78rem 0.9rem;
+      border: 1px solid #0f766e;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #0f766e;
+      text-align: center;
+      text-decoration: none;
+      line-height: 1.25;
+    }
+
     .current h2 {
       margin-top: 0;
     }
@@ -127,6 +145,29 @@
       margin-top: 18px;
     }
 
+    .schedule-details {
+      margin-top: 18px;
+    }
+
+    .schedule-details summary {
+      min-height: 3rem;
+      display: flex;
+      align-items: center;
+      padding: 0.72rem 0.9rem;
+      border: 1px solid #cbd2d9;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1f2933;
+      font-size: 1.12rem;
+      font-weight: 800;
+      line-height: 1.3;
+      cursor: pointer;
+    }
+
+    .schedule-details summary::marker {
+      color: #0f766e;
+    }
+
     .reference {
       margin-top: 24px;
       padding-top: 18px;
@@ -167,16 +208,20 @@
       診療体制は変更されることがあります。受診前に、必ず掲載されている医療機関へ電話で確認してください。
     </p>
 
+    <nav class="quick-actions" aria-label="ページ内メニュー">
+      <a class="jump-link" href="#scheduleDetails" id="scheduleJumpLink">曜日別一覧を見る</a>
+    </nav>
+
     <section class="current" aria-labelledby="currentHeading">
       <h2 id="currentHeading">今の時間の担当候補</h2>
       <p id="currentSummary">現在時刻を確認しています。</p>
       <div id="currentList" class="current-list"></div>
     </section>
 
-    <section aria-labelledby="scheduleHeading">
-      <h2 id="scheduleHeading">曜日別一覧</h2>
+    <details class="schedule-details" id="scheduleDetails" open>
+      <summary id="scheduleHeading">曜日別一覧</summary>
       <div id="scheduleList"></div>
-    </section>
+    </details>
 
     <section class="reference" aria-labelledby="referenceHeading">
       <h2 id="referenceHeading">参考URL</h2>
@@ -217,6 +262,7 @@
 
     renderCurrent();
     renderSchedule();
+    setupScheduleJump();
 
     function renderCurrent() {
       const now = new Date();
@@ -264,7 +310,9 @@
           const nextTimeText = formatOpeningTime(nextOpening.date, now);
           const hospitalText = formatHospitalNames(nextOpening.items);
           summary.textContent = `${timeText} 現在、この一覧上で受付時間内の担当候補は見つかりません。次は${nextTimeText}から、${hospitalText}の受付が始まります。受診前に必ず電話で確認してください。祝日は祝日欄も確認してください。`;
-          list.innerHTML = nextOpening.items.map(renderHospitalCard).join('');
+          list.innerHTML = nextOpening.items
+            .map((item) => renderHospitalCard(item))
+            .join('');
           return;
         }
 
@@ -288,7 +336,7 @@
       container.innerHTML = DAY_ORDER.map((day) => {
         const cards = SCHEDULE
           .filter((item) => item.day === day)
-          .map(renderHospitalCard)
+          .map((item) => renderHospitalCard(item))
           .join('');
 
         if (!cards) return '';
@@ -300,6 +348,16 @@
           </section>
         `;
       }).join('');
+    }
+
+    function setupScheduleJump() {
+      const link = document.getElementById('scheduleJumpLink');
+      const details = document.getElementById('scheduleDetails');
+      if (!link || !details) return;
+
+      link.addEventListener('click', () => {
+        details.open = true;
+      });
     }
 
     function renderHospitalCard(item, guidance) {
