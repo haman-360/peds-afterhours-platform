@@ -75,24 +75,6 @@
       background: #ecfdf5;
     }
 
-    .quick-actions {
-      display: grid;
-      gap: 8px;
-      margin: 0 0 16px;
-    }
-
-    .jump-link {
-      display: block;
-      padding: 0.78rem 0.9rem;
-      border: 1px solid #0f766e;
-      border-radius: 6px;
-      background: #ffffff;
-      color: #0f766e;
-      text-align: center;
-      text-decoration: none;
-      line-height: 1.25;
-    }
-
     .current h2 {
       margin-top: 0;
     }
@@ -151,8 +133,7 @@
 
     .schedule-details summary {
       min-height: 3rem;
-      display: flex;
-      align-items: center;
+      display: block;
       padding: 0.72rem 0.9rem;
       border: 1px solid #cbd2d9;
       border-radius: 6px;
@@ -208,18 +189,14 @@
       診療体制は変更されることがあります。受診前に、必ず掲載されている医療機関へ電話で確認してください。
     </p>
 
-    <nav class="quick-actions" aria-label="ページ内メニュー">
-      <a class="jump-link" href="#scheduleDetails" id="scheduleJumpLink">曜日別一覧を見る</a>
-    </nav>
-
     <section class="current" aria-labelledby="currentHeading">
       <h2 id="currentHeading">今の時間の担当候補</h2>
       <p id="currentSummary">現在時刻を確認しています。</p>
       <div id="currentList" class="current-list"></div>
     </section>
 
-    <details class="schedule-details" id="scheduleDetails" open>
-      <summary id="scheduleHeading">曜日別一覧</summary>
+    <details class="schedule-details" id="scheduleDetails">
+      <summary id="scheduleHeading">曜日別一覧（開く）</summary>
       <div id="scheduleList"></div>
     </details>
 
@@ -262,7 +239,7 @@
 
     renderCurrent();
     renderSchedule();
-    setupScheduleJump();
+    setupScheduleDetails();
 
     function renderCurrent() {
       const now = new Date();
@@ -350,14 +327,17 @@
       }).join('');
     }
 
-    function setupScheduleJump() {
-      const link = document.getElementById('scheduleJumpLink');
+    function setupScheduleDetails() {
       const details = document.getElementById('scheduleDetails');
-      if (!link || !details) return;
+      const summary = document.getElementById('scheduleHeading');
+      if (!details || !summary) return;
 
-      link.addEventListener('click', () => {
-        details.open = true;
-      });
+      const updateSummary = () => {
+        summary.textContent = details.open ? '曜日別一覧（閉じる）' : '曜日別一覧（開く）';
+      };
+
+      details.addEventListener('toggle', updateSummary);
+      updateSummary();
     }
 
     function renderHospitalCard(item, guidance) {
