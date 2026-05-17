@@ -99,6 +99,13 @@
       line-height: 1.45;
     }
 
+    .hospital-status {
+      margin-bottom: 6px;
+      color: #0f766e;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
     .hospital-meta {
       color: #52606d;
       font-size: 0.96rem;
@@ -203,9 +210,9 @@
       { day: '土', hospital: '泉州北部小児初期救急広域センター', condition: '初期救急', phone: '072-443-5940', hours: '17:00-22:00', holidayHours: '日祝を参照' },
       { day: '土', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '17:30-20:30', holidayHours: '日祝を参照' },
       { day: '日', hospital: '泉州北部小児初期救急広域センター', condition: '初期救急', phone: '072-443-5940', hours: '9:00-12:00, 13:00-16:00, 17:00-22:00', holidayHours: '9:00-12:00, 13:00-16:00, 17:00-22:00' },
-      { day: '日', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '9:30-11:30, 12:30-16:30', holidayHours: '9:30-11:30, 12:30-16:30' },
+      { day: '日', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '9:30-11:30, 12:30-16:30', guideHours: '10:00-12:00, 13:00-17:00', holidayHours: '9:30-11:30, 12:30-16:30' },
       { day: '祝日', hospital: '泉州北部小児初期救急広域センター', condition: '初期救急', phone: '072-443-5940', hours: '日祝を参照', holidayHours: '9:00-12:00, 13:00-16:00, 17:00-22:00' },
-      { day: '祝日', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '日祝を参照', holidayHours: '9:30-11:30, 12:30-16:30' }
+      { day: '祝日', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '日祝を参照', guideHours: '10:00-12:00, 13:00-17:00', holidayHours: '9:30-11:30, 12:30-16:30' }
     ];
 
     renderCurrent();
@@ -219,19 +226,27 @@
       const yesterdayDay = WEEKDAY_LABELS[yesterday.getDay()];
       const weekOfMonth = Math.ceil(now.getDate() / 7);
       const yesterdayWeekOfMonth = Math.ceil(yesterday.getDate() / 7);
-      const candidates = SCHEDULE.filter((item) => {
+      const currentCandidates = SCHEDULE.filter((item) => {
         if (item.day === day) {
           return matchesWeek(item.condition, weekOfMonth) &&
-            isCurrentTimeInHours(now, item.hours, 'same-day');
+            isCurrentTimeInHours(now, getGuidanceHours(item), 'same-day');
         }
 
         if (item.day === yesterdayDay) {
           return matchesWeek(item.condition, yesterdayWeekOfMonth) &&
-            isCurrentTimeInHours(now, item.hours, 'overnight-after-midnight');
+            isCurrentTimeInHours(now, getGuidanceHours(item), 'overnight-after-midnight');
         }
 
         return false;
       });
+      const initialCareGuidance = findSameDayInitialCareGuidance(now, day, weekOfMonth);
+      const candidates = mergeCandidateItems(
+        currentCandidates,
+        initialCareGuidance.map((guidance) => guidance.item)
+      );
+      const guidanceByHospital = new Map(
+        initialCareGuidance.map((guidance) => [guidance.item.hospital, guidance])
+      );
 
       const summary = document.getElementById('currentSummary');
       const list = document.getElementById('currentList');
@@ -258,8 +273,14 @@
         return;
       }
 
-      summary.textContent = `${timeText} 現在の担当候補です。受診前に必ず電話で確認してください。祝日は祝日欄も確認してください。`;
-      list.innerHTML = candidates.map(renderHospitalCard).join('');
+      const initialCareText = formatInitialCareGuidance(initialCareGuidance, now);
+      const currentText = currentCandidates.length
+        ? `${timeText} 現在の担当候補です。`
+        : `${timeText} 現在、この一覧上で受付時間内の担当候補は見つかりません。`;
+      summary.textContent = `${currentText}${initialCareText}受診前に必ず電話で確認してください。祝日は祝日欄も確認してください。`;
+      list.innerHTML = candidates
+        .map((item) => renderHospitalCard(item, guidanceByHospital.get(item.hospital)))
+        .join('');
     }
 
     function renderSchedule() {
@@ -281,19 +302,39 @@
       }).join('');
     }
 
-    function renderHospitalCard(item) {
+    function renderHospitalCard(item, guidance) {
+      const status = guidance
+        ? `<div class="hospital-status">${escapeHtml(formatGuidanceStatus(guidance))}</div>`
+        : '';
+
       return `
         <article class="hospital-card">
           <div class="hospital-name">${escapeHtml(item.hospital)}</div>
+          ${status}
           <div class="hospital-meta">
             条件: ${escapeHtml(item.condition)}<br>
             受付時間: ${escapeHtml(item.hours)}<br>
+            ${item.guideHours ? `診療時間: ${escapeHtml(item.guideHours)}<br>` : ''}
             祝日: ${escapeHtml(item.holidayHours)}<br>
             電話番号: ${escapeHtml(item.phone)}
           </div>
           <a class="phone-link" href="tel:${phoneHref(item.phone)}">電話する</a>
         </article>
       `;
+    }
+
+    function mergeCandidateItems(...itemGroups) {
+      const seen = new Set();
+      const items = [];
+
+      itemGroups.flat().forEach((item) => {
+        const key = `${item.day}|${item.hospital}|${item.hours}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        items.push(item);
+      });
+
+      return items;
     }
 
     function matchesWeek(condition, weekOfMonth) {
@@ -314,7 +355,7 @@
         SCHEDULE.forEach((item) => {
           if (item.day !== day || !matchesWeek(item.condition, weekOfMonth)) return;
 
-          getOpeningStarts(item.hours).forEach((startMinutes) => {
+          getOpeningStarts(getGuidanceHours(item)).forEach((startMinutes) => {
             const openingDate = new Date(targetDate);
             openingDate.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
             if (openingDate.getTime() <= currentTime) return;
@@ -336,6 +377,70 @@
           .filter((opening) => opening.date.getTime() === earliestTime)
           .map((opening) => opening.item)
       };
+    }
+
+    function findSameDayInitialCareGuidance(now, day, weekOfMonth) {
+      return SCHEDULE
+        .filter((item) => item.day === day)
+        .filter((item) => item.condition === '初期救急' && matchesWeek(item.condition, weekOfMonth))
+        .map((item) => {
+          if (isCurrentTimeInHours(now, getGuidanceHours(item), 'same-day')) {
+            return { item, status: 'open', date: null };
+          }
+
+          const openingDate = findNextOpeningForItemToday(now, item);
+          if (!openingDate) return null;
+
+          return { item, status: 'upcoming', date: openingDate };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+          const aTime = a.status === 'open' ? -1 : a.date.getTime();
+          const bTime = b.status === 'open' ? -1 : b.date.getTime();
+          return aTime - bTime;
+        });
+    }
+
+    function findNextOpeningForItemToday(now, item) {
+      const currentTime = now.getTime();
+      const openingDates = getOpeningStarts(getGuidanceHours(item))
+        .map((startMinutes) => {
+          const openingDate = new Date(now);
+          openingDate.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+          return openingDate;
+        })
+        .filter((openingDate) => openingDate.getTime() > currentTime);
+
+      if (!openingDates.length) return null;
+
+      return new Date(Math.min(...openingDates.map((openingDate) => openingDate.getTime())));
+    }
+
+    function formatInitialCareGuidance(guidanceItems, now) {
+      if (!guidanceItems.length) return '';
+
+      const openItems = guidanceItems.filter((guidance) => guidance.status === 'open');
+      const upcomingItems = guidanceItems.filter((guidance) => guidance.status === 'upcoming');
+      const messages = [];
+
+      if (openItems.length) {
+        messages.push(`${formatHospitalNames(openItems.map((guidance) => guidance.item))}が診療時間内です。`);
+      }
+
+      upcomingItems.forEach((guidance) => {
+        messages.push(`${formatOpeningTime(guidance.date, now)}から、${guidance.item.hospital}の診療時間が始まります。`);
+      });
+
+      return `初期急病センターは${messages.join('')}`;
+    }
+
+    function formatGuidanceStatus(guidance) {
+      if (guidance.status === 'open') return '診療時間内';
+      return `${formatOpeningTime(guidance.date, new Date())}から診療時間`;
+    }
+
+    function getGuidanceHours(item) {
+      return item.guideHours || item.hours;
     }
 
     function getOpeningStarts(hoursText) {
