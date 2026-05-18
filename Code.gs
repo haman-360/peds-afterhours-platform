@@ -1,8 +1,10 @@
 const CONFIG = {
   spreadsheetIdProperty: 'SPREADSHEET_ID',
   doctorEmailProperty: 'DOCTOR_EMAIL',
+  receptionPinProperty: 'RECEPTION_PIN',
   sheetName: 'consultations',
   authorizedPatientsSheetName: 'authorized_patients',
+  authorizedPatientsSheetNameAliases: ['authorized_paptients'],
   defaultStatus: '未対応',
   timezone: 'Asia/Tokyo'
 };
@@ -35,20 +37,32 @@ const AUTHORIZED_PATIENT_HEADERS = [
   '患者ID',
   '相談コード',
   '有効',
-  'メモ'
+  'メモ',
+  '有効化日時',
+  '有効化担当'
 ];
 
 function doGet(e) {
   const page = e && e.parameter && e.parameter.page;
-  const templateName = page === 'hospitals' ? 'hospital' : 'index';
-  const title = page === 'hospitals'
-    ? '泉州地域 小児救急輪番病院'
-    : '小児かかりつけ夜間休日相談';
+  const pageSettings = {
+    hospitals: {
+      templateName: 'hospital',
+      title: '泉州地域 小児救急輪番病院'
+    },
+    reception: {
+      templateName: 'reception',
+      title: '相談コード交付 受付管理'
+    }
+  };
+  const selectedPage = pageSettings[page] || {
+    templateName: 'index',
+    title: '小児かかりつけ夜間休日相談'
+  };
 
   return HtmlService
-    .createTemplateFromFile(templateName)
+    .createTemplateFromFile(selectedPage.templateName)
     .evaluate()
-    .setTitle(title)
+    .setTitle(selectedPage.title)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
@@ -321,17 +335,18 @@ function validateAuthorizedPatient_(data) {
   const sheet = getAuthorizedPatientsSheet_();
   ensureAuthorizedPatientsHeaderRow_(sheet);
   ensureAuthorizedPatientsColumnFormats_(sheet);
+  const headerMap = getAuthorizedPatientsHeaderMap_(sheet);
 
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
     throw new Error('かかりつけ相談コードの登録がまだありません。医院へお問い合わせください。');
   }
 
-  const values = sheet.getRange(2, 1, lastRow - 1, AUTHORIZED_PATIENT_HEADERS.length).getValues();
+  const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
   const matched = values.some((row) => {
-    const patientId = normalizePatientId_(row[0]);
-    const consultationCode = normalizeConsultationCode_(row[1]);
-    const enabled = isEnabledValue_(row[2]);
+    const patientId = normalizePatientId_(row[headerMap['患者ID']]);
+    const consultationCode = normalizeConsultationCode_(row[headerMap['相談コード']]);
+    const enabled = isEnabledValue_(row[headerMap['有効']]);
 
     return enabled &&
       patientId === data.patientId &&
@@ -350,8 +365,12 @@ function getConsultationSheet_() {
 
 function getAuthorizedPatientsSheet_() {
   const spreadsheet = getSpreadsheet_();
-  return spreadsheet.getSheetByName(CONFIG.authorizedPatientsSheetName) ||
-    spreadsheet.insertSheet(CONFIG.authorizedPatientsSheetName);
+  const sheetNames = [CONFIG.authorizedPatientsSheetName].concat(CONFIG.authorizedPatientsSheetNameAliases || []);
+  const existingSheet = sheetNames
+    .map((sheetName) => spreadsheet.getSheetByName(sheetName))
+    .find((sheet) => sheet);
+
+  return existingSheet || spreadsheet.insertSheet(CONFIG.authorizedPatientsSheetName);
 }
 
 function getSpreadsheet_() {
@@ -402,17 +421,159 @@ function ensureColumnFormats_(sheet) {
 }
 
 function ensureAuthorizedPatientsHeaderRow_(sheet) {
-  const currentHeaders = sheet.getRange(1, 1, 1, AUTHORIZED_PATIENT_HEADERS.length).getValues()[0];
+  const headerWidth = Math.max(sheet.getLastColumn(), AUTHORIZED_PATIENT_HEADERS.length);
+  const currentHeaders = sheet.getRange(1, 1, 1, headerWidth).getValues()[0].map(cleanText_);
   const hasHeaders = currentHeaders.some((value) => value);
 
   if (!hasHeaders) {
     sheet.getRange(1, 1, 1, AUTHORIZED_PATIENT_HEADERS.length).setValues([AUTHORIZED_PATIENT_HEADERS]);
     sheet.setFrozenRows(1);
+    return;
   }
+
+  AUTHORIZED_PATIENT_HEADERS.forEach((header) => {
+    if (currentHeaders.indexOf(header) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
+    }
+  });
+
+  const refreshedHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(cleanText_);
+  ['患者ID', '相談コード', '有効'].forEach((requiredHeader, index) => {
+    if (refreshedHeaders.indexOf(requiredHeader) === -1) {
+      sheet.getRange(1, index + 1).setValue(requiredHeader);
+    }
+  });
+}
+
+function getAuthorizedPatientsHeaderMap_(sheet) {
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(cleanText_);
+  return headers.reduce((map, header, index) => {
+    if (header) {
+      map[header] = index;
+    }
+    return map;
+  }, {});
+}
+
+function getReceptionPatientList(auth) {
+  validateReceptionAuth_(auth);
+
+  const sheet = getAuthorizedPatientsSheet_();
+  ensureAuthorizedPatientsHeaderRow_(sheet);
+  ensureAuthorizedPatientsColumnFormats_(sheet);
+
+  const headerMap = getAuthorizedPatientsHeaderMap_(sheet);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return {
+      generatedAt: formatDateTime_(new Date()),
+      patients: []
+    };
+  }
+
+  const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  const patients = values
+    .map((row, index) => {
+      const enabledAt = row[headerMap['有効化日時']];
+      return {
+        rowNumber: index + 2,
+        patientId: normalizePatientId_(row[headerMap['患者ID']]),
+        consultationCode: cleanText_(row[headerMap['相談コード']]),
+        enabled: isEnabledValue_(row[headerMap['有効']]),
+        enabledAt: enabledAt ? formatDateTime_(enabledAt) : '',
+        enabledBy: cleanText_(row[headerMap['有効化担当']]),
+        memo: cleanText_(row[headerMap['メモ']])
+      };
+    })
+    .filter((patient) => patient.patientId || patient.consultationCode);
+
+  return {
+    generatedAt: formatDateTime_(new Date()),
+    patients
+  };
+}
+
+function activateReceptionPatient(payload) {
+  validateReceptionAuth_(payload && payload.auth);
+
+  const rowNumber = Number(payload && payload.rowNumber);
+  const staffName = cleanText_(payload && payload.staffName);
+  if (!Number.isInteger(rowNumber) || rowNumber < 2) {
+    throw new Error('更新対象が正しくありません。画面を再読み込みしてください。');
+  }
+  if (!staffName) {
+    throw new Error('担当者名を入力してください。');
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    const sheet = getAuthorizedPatientsSheet_();
+    ensureAuthorizedPatientsHeaderRow_(sheet);
+    ensureAuthorizedPatientsColumnFormats_(sheet);
+    const headerMap = getAuthorizedPatientsHeaderMap_(sheet);
+
+    if (rowNumber > sheet.getLastRow()) {
+      throw new Error('対象患者が見つかりません。画面を再読み込みしてください。');
+    }
+
+    const row = sheet.getRange(rowNumber, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (!normalizePatientId_(row[headerMap['患者ID']]) || !normalizeConsultationCode_(row[headerMap['相談コード']])) {
+      throw new Error('患者IDまたは相談コードが未登録の行は有効化できません。');
+    }
+
+    if (isEnabledValue_(row[headerMap['有効']])) {
+      const enabledAt = row[headerMap['有効化日時']];
+      return {
+        rowNumber,
+        enabled: true,
+        enabledAt: enabledAt ? formatDateTime_(enabledAt) : '',
+        enabledBy: cleanText_(row[headerMap['有効化担当']])
+      };
+    }
+
+    const now = new Date();
+    sheet.getRange(rowNumber, headerMap['有効'] + 1).setValue(true);
+    sheet.getRange(rowNumber, headerMap['有効化日時'] + 1).setValue(now);
+    sheet.getRange(rowNumber, headerMap['有効化担当'] + 1).setValue(staffName);
+
+    return {
+      rowNumber,
+      enabled: true,
+      enabledAt: formatDateTime_(now),
+      enabledBy: staffName
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function validateReceptionAuth_(auth) {
+  const configuredPin = cleanText_(PropertiesService.getScriptProperties().getProperty(CONFIG.receptionPinProperty));
+  if (!configuredPin) {
+    throw new Error('受付管理用PINが未設定です。Script PropertiesにRECEPTION_PINを設定してください。');
+  }
+
+  const submittedPin = cleanText_(auth && auth.pin);
+  if (!submittedPin || submittedPin !== configuredPin) {
+    throw new Error('受付管理用PINが正しくありません。');
+  }
+}
+
+function formatDateTime_(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return Utilities.formatDate(date, CONFIG.timezone, 'yyyy/MM/dd HH:mm');
 }
 
 function ensureAuthorizedPatientsColumnFormats_(sheet) {
   sheet.getRange(1, 1, sheet.getMaxRows(), 2).setNumberFormat('@');
+
+  const headerMap = getAuthorizedPatientsHeaderMap_(sheet);
+  if (headerMap['有効化日時'] !== undefined) {
+    sheet.getRange(1, headerMap['有効化日時'] + 1, sheet.getMaxRows(), 1).setNumberFormat('yyyy/mm/dd hh:mm');
+  }
 }
 
 function setupAuthorizedPatientsSheet() {
