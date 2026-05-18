@@ -99,6 +99,13 @@
       line-height: 1.45;
     }
 
+    .hospital-status {
+      margin-bottom: 6px;
+      color: #0f766e;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
     .hospital-meta {
       color: #52606d;
       font-size: 0.96rem;
@@ -118,6 +125,28 @@
 
     .day-section {
       margin-top: 18px;
+    }
+
+    .schedule-details {
+      margin-top: 18px;
+    }
+
+    .schedule-details summary {
+      min-height: 3rem;
+      display: block;
+      padding: 0.72rem 0.9rem;
+      border: 1px solid #cbd2d9;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1f2933;
+      font-size: 1.12rem;
+      font-weight: 800;
+      line-height: 1.3;
+      cursor: pointer;
+    }
+
+    .schedule-details summary::marker {
+      color: #0f766e;
     }
 
     .reference {
@@ -166,10 +195,10 @@
       <div id="currentList" class="current-list"></div>
     </section>
 
-    <section aria-labelledby="scheduleHeading">
-      <h2 id="scheduleHeading">曜日別一覧</h2>
+    <details class="schedule-details" id="scheduleDetails">
+      <summary id="scheduleHeading">曜日別一覧（開く）</summary>
       <div id="scheduleList"></div>
-    </section>
+    </details>
 
     <section class="reference" aria-labelledby="referenceHeading">
       <h2 id="referenceHeading">参考URL</h2>
@@ -203,13 +232,14 @@
       { day: '土', hospital: '泉州北部小児初期救急広域センター', condition: '初期救急', phone: '072-443-5940', hours: '17:00-22:00', holidayHours: '日祝を参照' },
       { day: '土', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '17:30-20:30', holidayHours: '日祝を参照' },
       { day: '日', hospital: '泉州北部小児初期救急広域センター', condition: '初期救急', phone: '072-443-5940', hours: '9:00-12:00, 13:00-16:00, 17:00-22:00', holidayHours: '9:00-12:00, 13:00-16:00, 17:00-22:00' },
-      { day: '日', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '9:30-11:30, 12:30-16:30', holidayHours: '9:30-11:30, 12:30-16:30' },
+      { day: '日', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '9:30-11:30, 12:30-16:30', guideHours: '10:00-12:00, 13:00-17:00', holidayHours: '9:30-11:30, 12:30-16:30' },
       { day: '祝日', hospital: '泉州北部小児初期救急広域センター', condition: '初期救急', phone: '072-443-5940', hours: '日祝を参照', holidayHours: '9:00-12:00, 13:00-16:00, 17:00-22:00' },
-      { day: '祝日', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '日祝を参照', holidayHours: '9:30-11:30, 12:30-16:30' }
+      { day: '祝日', hospital: '泉州南部初期急病センター', condition: '初期救急', phone: '072-464-6040', hours: '日祝を参照', guideHours: '10:00-12:00, 13:00-17:00', holidayHours: '9:30-11:30, 12:30-16:30' }
     ];
 
     renderCurrent();
     renderSchedule();
+    setupScheduleDetails();
 
     function renderCurrent() {
       const now = new Date();
@@ -219,19 +249,27 @@
       const yesterdayDay = WEEKDAY_LABELS[yesterday.getDay()];
       const weekOfMonth = Math.ceil(now.getDate() / 7);
       const yesterdayWeekOfMonth = Math.ceil(yesterday.getDate() / 7);
-      const candidates = SCHEDULE.filter((item) => {
+      const currentCandidates = SCHEDULE.filter((item) => {
         if (item.day === day) {
           return matchesWeek(item.condition, weekOfMonth) &&
-            isCurrentTimeInHours(now, item.hours, 'same-day');
+            isCurrentTimeInHours(now, getGuidanceHours(item), 'same-day');
         }
 
         if (item.day === yesterdayDay) {
           return matchesWeek(item.condition, yesterdayWeekOfMonth) &&
-            isCurrentTimeInHours(now, item.hours, 'overnight-after-midnight');
+            isCurrentTimeInHours(now, getGuidanceHours(item), 'overnight-after-midnight');
         }
 
         return false;
       });
+      const initialCareGuidance = findSameDayInitialCareGuidance(now, day, weekOfMonth);
+      const candidates = mergeCandidateItems(
+        currentCandidates,
+        initialCareGuidance.map((guidance) => guidance.item)
+      );
+      const guidanceByHospital = new Map(
+        initialCareGuidance.map((guidance) => [guidance.item.hospital, guidance])
+      );
 
       const summary = document.getElementById('currentSummary');
       const list = document.getElementById('currentList');
@@ -244,13 +282,30 @@
       });
 
       if (!candidates.length) {
+        const nextOpening = findNextOpeningCandidates(now);
+        if (nextOpening) {
+          const nextTimeText = formatOpeningTime(nextOpening.date, now);
+          const hospitalText = formatHospitalNames(nextOpening.items);
+          summary.textContent = `${timeText} 現在、この一覧上で受付時間内の担当候補は見つかりません。次は${nextTimeText}から、${hospitalText}の受付が始まります。受診前に必ず電話で確認してください。祝日は祝日欄も確認してください。`;
+          list.innerHTML = nextOpening.items
+            .map((item) => renderHospitalCard(item))
+            .join('');
+          return;
+        }
+
         summary.textContent = `${timeText} 現在、この一覧上で受付時間内の担当候補は見つかりません。下の曜日別一覧と参考URLを確認し、受診前に必ず電話してください。祝日は祝日欄も確認してください。`;
         list.innerHTML = '';
         return;
       }
 
-      summary.textContent = `${timeText} 現在の担当候補です。受診前に必ず電話で確認してください。祝日は祝日欄も確認してください。`;
-      list.innerHTML = candidates.map(renderHospitalCard).join('');
+      const initialCareText = formatInitialCareGuidance(initialCareGuidance, now);
+      const currentText = currentCandidates.length
+        ? `${timeText} 現在の担当候補です。`
+        : `${timeText} 現在、この一覧上で受付時間内の担当候補は見つかりません。`;
+      summary.textContent = `${currentText}${initialCareText}受診前に必ず電話で確認してください。祝日は祝日欄も確認してください。`;
+      list.innerHTML = candidates
+        .map((item) => renderHospitalCard(item, guidanceByHospital.get(item.hospital)))
+        .join('');
     }
 
     function renderSchedule() {
@@ -258,7 +313,7 @@
       container.innerHTML = DAY_ORDER.map((day) => {
         const cards = SCHEDULE
           .filter((item) => item.day === day)
-          .map(renderHospitalCard)
+          .map((item) => renderHospitalCard(item))
           .join('');
 
         if (!cards) return '';
@@ -272,13 +327,32 @@
       }).join('');
     }
 
-    function renderHospitalCard(item) {
+    function setupScheduleDetails() {
+      const details = document.getElementById('scheduleDetails');
+      const summary = document.getElementById('scheduleHeading');
+      if (!details || !summary) return;
+
+      const updateSummary = () => {
+        summary.textContent = details.open ? '曜日別一覧（閉じる）' : '曜日別一覧（開く）';
+      };
+
+      details.addEventListener('toggle', updateSummary);
+      updateSummary();
+    }
+
+    function renderHospitalCard(item, guidance) {
+      const status = guidance
+        ? `<div class="hospital-status">${escapeHtml(formatGuidanceStatus(guidance))}</div>`
+        : '';
+
       return `
         <article class="hospital-card">
           <div class="hospital-name">${escapeHtml(item.hospital)}</div>
+          ${status}
           <div class="hospital-meta">
             条件: ${escapeHtml(item.condition)}<br>
             受付時間: ${escapeHtml(item.hours)}<br>
+            ${item.guideHours ? `診療時間: ${escapeHtml(item.guideHours)}<br>` : ''}
             祝日: ${escapeHtml(item.holidayHours)}<br>
             電話番号: ${escapeHtml(item.phone)}
           </div>
@@ -287,9 +361,165 @@
       `;
     }
 
+    function mergeCandidateItems(...itemGroups) {
+      const seen = new Set();
+      const items = [];
+
+      itemGroups.flat().forEach((item) => {
+        const key = `${item.day}|${item.hospital}|${item.hours}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        items.push(item);
+      });
+
+      return items;
+    }
+
     function matchesWeek(condition, weekOfMonth) {
       if (condition === '全週' || condition === '初期救急') return true;
       return condition.indexOf(`第${weekOfMonth}`) !== -1;
+    }
+
+    function findNextOpeningCandidates(now) {
+      const currentTime = now.getTime();
+      const openings = [];
+
+      for (let offset = 0; offset <= 7; offset += 1) {
+        const targetDate = new Date(now);
+        targetDate.setDate(now.getDate() + offset);
+        const day = WEEKDAY_LABELS[targetDate.getDay()];
+        const weekOfMonth = Math.ceil(targetDate.getDate() / 7);
+
+        SCHEDULE.forEach((item) => {
+          if (item.day !== day || !matchesWeek(item.condition, weekOfMonth)) return;
+
+          getOpeningStarts(getGuidanceHours(item)).forEach((startMinutes) => {
+            const openingDate = new Date(targetDate);
+            openingDate.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+            if (openingDate.getTime() <= currentTime) return;
+
+            openings.push({
+              date: openingDate,
+              item
+            });
+          });
+        });
+      }
+
+      if (!openings.length) return null;
+
+      const earliestTime = Math.min(...openings.map((opening) => opening.date.getTime()));
+      return {
+        date: new Date(earliestTime),
+        items: openings
+          .filter((opening) => opening.date.getTime() === earliestTime)
+          .map((opening) => opening.item)
+      };
+    }
+
+    function findSameDayInitialCareGuidance(now, day, weekOfMonth) {
+      return SCHEDULE
+        .filter((item) => item.day === day)
+        .filter((item) => item.condition === '初期救急' && matchesWeek(item.condition, weekOfMonth))
+        .map((item) => {
+          if (isCurrentTimeInHours(now, getGuidanceHours(item), 'same-day')) {
+            return { item, status: 'open', date: null };
+          }
+
+          const openingDate = findNextOpeningForItemToday(now, item);
+          if (!openingDate) return null;
+
+          return { item, status: 'upcoming', date: openingDate };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+          const aTime = a.status === 'open' ? -1 : a.date.getTime();
+          const bTime = b.status === 'open' ? -1 : b.date.getTime();
+          return aTime - bTime;
+        });
+    }
+
+    function findNextOpeningForItemToday(now, item) {
+      const currentTime = now.getTime();
+      const openingDates = getOpeningStarts(getGuidanceHours(item))
+        .map((startMinutes) => {
+          const openingDate = new Date(now);
+          openingDate.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+          return openingDate;
+        })
+        .filter((openingDate) => openingDate.getTime() > currentTime);
+
+      if (!openingDates.length) return null;
+
+      return new Date(Math.min(...openingDates.map((openingDate) => openingDate.getTime())));
+    }
+
+    function formatInitialCareGuidance(guidanceItems, now) {
+      if (!guidanceItems.length) return '';
+
+      const openItems = guidanceItems.filter((guidance) => guidance.status === 'open');
+      const upcomingItems = guidanceItems.filter((guidance) => guidance.status === 'upcoming');
+      const messages = [];
+
+      if (openItems.length) {
+        messages.push(`${formatHospitalNames(openItems.map((guidance) => guidance.item))}が診療時間内です。`);
+      }
+
+      upcomingItems.forEach((guidance) => {
+        messages.push(`${formatOpeningTime(guidance.date, now)}から、${guidance.item.hospital}の診療時間が始まります。`);
+      });
+
+      return `初期急病センターは${messages.join('')}`;
+    }
+
+    function formatGuidanceStatus(guidance) {
+      if (guidance.status === 'open') return '診療時間内';
+      return `${formatOpeningTime(guidance.date, new Date())}から診療時間`;
+    }
+
+    function getGuidanceHours(item) {
+      return item.guideHours || item.hours;
+    }
+
+    function getOpeningStarts(hoursText) {
+      if (!hoursText || hoursText.indexOf('参照') !== -1 || hoursText === '休診') return [];
+
+      return hoursText.split(',')
+        .map((rangeText) => {
+          const parts = rangeText.trim().split('-');
+          if (parts.length !== 2) return null;
+          return minutesFromClock(parts[0]);
+        })
+        .filter((start) => start !== null);
+    }
+
+    function formatOpeningTime(date, now) {
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
+      const target = new Date(date);
+      target.setHours(0, 0, 0, 0);
+
+      const datePart = target.getTime() === today.getTime()
+        ? ''
+        : date.toLocaleDateString('ja-JP', {
+          month: 'numeric',
+          day: 'numeric',
+          weekday: 'short'
+        }) + ' ';
+
+      const timePart = date.toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      return `${datePart}${timePart}`;
+    }
+
+    function formatHospitalNames(items) {
+      const hospitals = [...new Set(items.map((item) => item.hospital))];
+      if (hospitals.length === 1) return hospitals[0];
+      if (hospitals.length === 2) return hospitals.join('と');
+      return `${hospitals.slice(0, -1).join('、')}、${hospitals[hospitals.length - 1]}`;
     }
 
     function isCurrentTimeInHours(now, hoursText, mode) {
